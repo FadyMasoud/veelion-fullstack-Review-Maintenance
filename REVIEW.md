@@ -21,11 +21,13 @@ Severity is High, Medium or Low.
 
 ### 1. Two requests at the same time can lose data (High)
 
-Where: `src/modules/tasks/services/tasks.service.js` lines 49-53, 67-82, 88-96 and `src/modules/activity/services/activity.service.js` lines 38-47
+Where: `src/modules/tasks/services/tasks.service.js` lines 49-53, 67-82, 88-96
 
 Now: every change reads the whole file, changes the array in memory, then writes the whole file back. Nothing stops two requests from doing this at the same time.
 
 Problem: if two users add a task at the same moment, both read the same old list, and the second write replaces the first one. Both users get 201 Created but one task is gone and there is no error anywhere. I tested it by sending 20 POST /tasks at the same time and only 19 were saved.
+
+The Activity module doesn't lose data today, but only because its sync file calls block the whole server, so requests run one by one (see Performance 1). As soon as it is made async it has the same problem, so it needs the same lock.
 
 Fix: add a simple lock per file inside jsonStore.js so writes to the same file wait for each other. I would add one function like `updateJsonArray(filePath, updateFn)` that does read, change and write inside the lock, so a service can't forget to use it. This can be written by hand in a few lines with a promise queue. The `async-mutex` package does the same thing if we want a library. If more than one server process ever uses the same files, an in-memory lock is not enough and something like `proper-lockfile` is needed.
 
