@@ -1,0 +1,33 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 64px;
+  padding: 0 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.menuButton {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .header {
+    padding: 0 1rem;
+  }
+
+  .menuButton {
+    display: inline-grid;
+  }
+}

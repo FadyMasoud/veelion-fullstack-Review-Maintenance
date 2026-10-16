@@ -38,7 +38,7 @@ export function TaskDashboard() {
       ) : null}
 
       {loadError ? (
-        <section className="card" style={{ padding: "1rem", borderColor: "#e3b4c0", background: "#fff8fa" }}>
+        <section className="card" style={{ padding: "1rem", borderColor: "var(--danger-border)", background: "var(--danger-soft)" }}>
           <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{loadError}</p>
           <button type="button" className="button" onClick={fetchTasks}>
             Retry
@@ -50,7 +50,7 @@ export function TaskDashboard() {
         <section
           role="alert"
           className="card"
-          style={{ padding: "1rem", borderColor: "#e3b4c0", background: "#fff8fa" }}
+          style={{ padding: "1rem", borderColor: "var(--danger-border)", background: "var(--danger-soft)" }}
         >
           <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{updateError}</p>
           <button type="button" className="button" onClick={clearUpdateError}>

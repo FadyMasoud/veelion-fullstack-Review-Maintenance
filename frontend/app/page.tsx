@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main>
+    <div>
       <header className="stack" style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ margin: 0 }}>VeeLion Frontend Assessment</h1>
         <p style={{ margin: 0, color: "var(--muted)" }}>
@@ -21,6 +21,6 @@ export default function HomePage() {
 
         </Link>
       </section>
-    </main>
+    </div>
   );
 }
