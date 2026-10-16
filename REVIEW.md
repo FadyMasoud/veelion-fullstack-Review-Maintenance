@@ -291,17 +291,7 @@ Fix: remove the interval, `tick` and `forcedList` completely. Only filter again 
 
 ## Security
 
-### 1. The backend URL uses the NEXT_PUBLIC_ prefix (Low)
-
-Where: `lib/constants.ts` line 2 and `.env.example`
-
-Now: the backend address is read from `NEXT_PUBLIC_BACKEND_API_URL`.
-
-Problem: in Next.js, `NEXT_PUBLIC_` means "put this value into the JavaScript that goes to the browser". The backend should only be called from the server (the API routes), so the name says the opposite of what we want. Today it is only used on the server, but if a client component ever imports it, the internal address ends up in the browser.
-
-Fix: rename it to `BACKEND_API_URL`, and keep the old name working as a fallback so existing `.env.local` files don't break.
-
-### 2. Next.js version has known security issues (High)
+### 1. Next.js version has known security issues (High)
 
 Where: `package.json` (`"next": "14.2.5"`)
 
