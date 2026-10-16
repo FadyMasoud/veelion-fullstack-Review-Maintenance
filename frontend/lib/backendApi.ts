@@ -1,5 +1,12 @@
 import { BACKEND_BASE_URL } from "@/lib/constants";
-import type { ActivityLog, ErrorResponse, Task, TaskResponse, TasksResponse } from "@/types/api";
+import type {
+  ActivityLog,
+  ErrorResponse,
+  Task,
+  TaskResponse,
+  TasksResponse,
+  TasksSummary,
+} from "@/types/api";
 
 // Keeps the backend's HTTP status, so API routes can pass it on to the browser
 // instead of turning every failure into a 500.
@@ -60,4 +67,10 @@ export async function updateTaskInBackend(taskId: string, completed: boolean): P
 
 export async function getActivityFromBackend(): Promise<ActivityLog[]> {
   return requestBackend<ActivityLog[]>("/activity");
+}
+
+// `days` is passed through as-is. The backend validates it and answers 400 if it's wrong.
+export async function getTasksSummaryFromBackend(days: string | null): Promise<TasksSummary> {
+  const query = days === null ? "" : `?${new URLSearchParams({ days })}`;
+  return requestBackend<TasksSummary>(`/reports/tasks-summary${query}`);
 }
