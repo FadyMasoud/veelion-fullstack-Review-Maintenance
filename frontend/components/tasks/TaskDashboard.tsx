@@ -10,11 +10,13 @@ export function TaskDashboard() {
     filteredTasks,
     filter,
     loading,
-    error,
-    updatingTaskId,
+    loadError,
+    updateError,
+    savingTaskIds,
     setFilter,
     fetchTasks,
     updateTaskStatus,
+    clearUpdateError,
   } = useTasks();
 
   const handleToggle = (task: Task) => {
@@ -35,17 +37,30 @@ export function TaskDashboard() {
         </section>
       ) : null}
 
-      {error ? (
+      {loadError ? (
         <section className="card" style={{ padding: "1rem", borderColor: "#e3b4c0", background: "#fff8fa" }}>
-          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{error}</p>
+          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{loadError}</p>
           <button type="button" className="button" onClick={fetchTasks}>
             Retry
           </button>
         </section>
       ) : null}
 
-      {!loading && !error ? (
-        <TaskList tasks={filteredTasks} updatingTaskId={updatingTaskId} onToggle={handleToggle} />
+      {updateError ? (
+        <section
+          role="alert"
+          className="card"
+          style={{ padding: "1rem", borderColor: "#e3b4c0", background: "#fff8fa" }}
+        >
+          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{updateError}</p>
+          <button type="button" className="button" onClick={clearUpdateError}>
+            Dismiss
+          </button>
+        </section>
+      ) : null}
+
+      {!loading && !loadError ? (
+        <TaskList tasks={filteredTasks} savingTaskIds={savingTaskIds} onToggle={handleToggle} />
       ) : null}
     </section>
   );

@@ -11,22 +11,36 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+// If the error body isn't the JSON we expect (for example an HTML error page),
+// show a simple message instead of a JSON parser error.
+async function readErrorMessage(response: Response): Promise<string> {
+  const fallback = `Request failed (${response.status}).`;
+
+  try {
+    const body = (await response.json()) as ErrorResponse;
+    return body.error?.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("Could not connect. Check your connection and try again.");
+  }
 
   if (!response.ok) {
-    try {
-      const body = (await response.json()) as ErrorResponse;
-      throw new Error(body.error?.message || `Request failed with ${response.status}`);
-    } catch (error) {
-      throw new Error(getErrorMessage(error, `Request failed with ${response.status}`));
-    }
+    throw new Error(await readErrorMessage(response));
   }
 
   return (await response.json()) as T;
@@ -36,13 +50,16 @@ export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
-  const [updatingTaskId, setUpdatingTaskId] = useState<string>("");
+  // Loading errors replace the list. Update errors are shown above it, so one
+  // failed toggle doesn't hide every task.
+  const [loadError, setLoadError] = useState<string>("");
+  const [updateError, setUpdateError] = useState<string>("");
+  const [savingTaskIds, setSavingTaskIds] = useState<ReadonlySet<string>>(() => new Set());
 
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
+      setLoadError("");
 
       const body = await requestJson<TasksResponse>("/api/tasks", {
         method: "GET",
@@ -50,17 +67,18 @@ export function useTasks() {
 
       setTasks(body.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Could not load tasks right now."));
+      setLoadError(getErrorMessage(error, "Could not load tasks right now."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   const updateTaskStatus = useCallback(async (taskId: string, completed: boolean) => {
-    try {
-      setUpdatingTaskId(taskId);
-      setError("");
+    // A Set so several tasks can be saving at the same time.
+    setSavingTaskIds((previous) => new Set(previous).add(taskId));
+    setUpdateError("");
 
+    try {
       const body = await requestJson<TaskResponse>(`/api/tasks/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify({ completed }),
@@ -70,11 +88,17 @@ export function useTasks() {
         previous.map((task) => (task.id === taskId ? body.data : task))
       );
     } catch (error) {
-      setError(getErrorMessage(error, "Could not update task status."));
+      setUpdateError(getErrorMessage(error, "Could not update task status."));
     } finally {
-      setUpdatingTaskId("");
+      setSavingTaskIds((previous) => {
+        const next = new Set(previous);
+        next.delete(taskId);
+        return next;
+      });
     }
   }, []);
+
+  const clearUpdateError = useCallback(() => setUpdateError(""), []);
 
   useEffect(() => {
     fetchTasks();
@@ -97,10 +121,12 @@ export function useTasks() {
     filteredTasks,
     filter,
     loading,
-    error,
-    updatingTaskId,
+    loadError,
+    updateError,
+    savingTaskIds,
     setFilter,
     fetchTasks,
     updateTaskStatus,
+    clearUpdateError,
   };
 }
