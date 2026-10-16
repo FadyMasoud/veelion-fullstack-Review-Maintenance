@@ -137,6 +137,16 @@ Problem: one client can send unlimited requests, and each one rewrites a file on
 
 Fix: add `helmet` for security headers and `express-rate-limit` for a request limit. Low priority because the API is meant to be called by the Next.js server, not directly from the internet.
 
+### 3. Dependencies with known security issues (Medium)
+
+Where: `package-lock.json` (packages that come with Express: `proxy-addr`, `body-parser`, `qs`)
+
+Now: `npm audit` reports 3 issues, one of them critical (`proxy-addr`, IP spoofing).
+
+Problem: these are publicly known issues, and any security scan will flag them.
+
+Fix: run `npm audit fix`. It only updates these packages to fixed versions inside the same Express 4 range, so nothing in our code has to change.
+
 ---
 
 ## Maintainability
@@ -195,4 +205,226 @@ Fix: delete both and use readJsonArray from jsonStore.
 
 # Frontend
 
-To be completed after reviewing the Task Dashboard and Activity Feed.
+All paths below are inside the `frontend` folder.
+
+## Good things I kept
+
+- The Task Dashboard is split well. The data logic lives in one hook (`useTasks`), and the UI is split into small components (StatusFilter, TaskList, TaskItem).
+- The types for the API are in one place (`types/api.ts`), and TypeScript strict mode is on.
+- The browser never calls the backend directly. It calls the Next.js API routes, and they call the backend. This avoids CORS problems and hides the backend address.
+- Some good accessibility work already: `aria-pressed` on the filter buttons and a clear `aria-label` on the toggle button.
+- The toggle button is disabled and shows "Saving..." while the request is running, and there is a Retry button when loading fails.
+
+The Activity Feed is the module with most of the problems. The Task Dashboard is mostly fine and only needs smaller fixes.
+
+---
+
+## Bugs
+
+### 1. The Activity page crashes when the backend fails (High)
+
+Where: `app/activity/page.tsx` lines 49-60 and line 120
+
+Now: the page calls `response.json()` without checking `response.ok`, and saves whatever comes back as the list.
+
+Problem: when the backend is down, `/api/activity` returns `{ "error": { "message": "..." } }`, which is an object, not an array (I checked this by stopping the backend). The page saves that object as the list, and then `forcedList.map(...)` on line 120 throws "map is not a function", and the whole page crashes. If the request fails in a different way, the `catch` sets an empty list, so the user sees "Total: 0" and thinks there is no activity, when actually something went wrong.
+
+Fix: check `response.ok`, and keep proper loading and error state like the Tasks hook does (see UX 1).
+
+### 2. One failed toggle hides the whole task list (Medium)
+
+Where: `hooks/useTasks.ts` line 73 and `components/tasks/TaskDashboard.tsx` lines 38-49
+
+Now: loading errors and update errors use the same `error` state. The dashboard only shows the list when there is no error.
+
+Problem: if marking one task as completed fails, the whole list disappears and is replaced by an error box. The user loses sight of all their tasks because of one failed click, and "Retry" reloads everything instead of retrying the click.
+
+Fix: keep two separate errors: one for loading (replace the list) and one for updates (show a small message and keep the list on screen).
+
+### 3. The API routes turn every backend error into 500 (Medium)
+
+Where: `app/api/tasks/[id]/route.ts` lines 23-27, `app/api/tasks/route.ts` lines 8-12, `app/api/activity/route.ts` lines 8-12, and `lib/backendApi.ts` (every function)
+
+Now: `backendApi.ts` throws a plain Error with only the message, so the real status code is lost. The routes then always answer with 500.
+
+Problem: a 404 (task not found) or a 400 (bad input) from the backend reaches the browser as 500. Also, sending broken JSON to `PATCH /api/tasks/:id` gives 500 instead of 400. The frontend can't tell "you did something wrong" from "the server is broken". I tested both: PATCH with an unknown id returns 404 from the backend but 500 from `/api/tasks/:id`.
+
+Fix: make backendApi throw an error that keeps the status code (a small ApiError class), and have the routes pass that status code on. Broken JSON in the request should return 400.
+
+### 4. The user can see technical error messages (Low)
+
+Where: `hooks/useTasks.ts` lines 23-30
+
+Now: if the error response is not JSON (for example an HTML error page), `response.json()` fails, and the catch shows that parse error's message.
+
+Problem: the user sees something like "Unexpected token '<' in JSON" instead of a normal message. The code also throws an error inside its own try and catches it again right away, which is hard to follow.
+
+Fix: read the error body safely, and if it isn't usable, fall back to a simple message like "Request failed (500)".
+
+### 5. Only one task can be "saving" at a time (Low)
+
+Where: `hooks/useTasks.ts` lines 40, 61 and 75
+
+Now: `updatingTaskId` holds one id.
+
+Problem: if the user clicks task A and then task B quickly, B replaces A as the saving one. When A finishes it clears the value, so B's button turns back on while B is still saving, and the user can click it again.
+
+Fix: keep a Set of ids that are saving, instead of a single id.
+
+---
+
+## Performance
+
+### 1. The Activity page re-renders and copies the whole list every 1.4 seconds (High)
+
+Where: `app/activity/page.tsx` lines 63-83
+
+Now: a `setInterval` changes a `tick` value every 1.4 seconds. Each tick runs the filter again and makes a new copy of the list (sometimes copying every item too), even if nothing changed.
+
+Problem: the page keeps doing work forever while it is open, and the whole list re-renders every 1.4 seconds for no reason. With a long activity log this makes typing in the search box feel slow and uses battery. The tick doesn't fetch new data either, so it doesn't even keep the feed up to date.
+
+Fix: remove the interval, `tick` and `forcedList` completely. Only filter again when the list or the search text changes (see React best practices 1). If the feed should update on its own later, poll the API instead.
+
+---
+
+## Security
+
+### 1. The backend URL uses the NEXT_PUBLIC_ prefix (Low)
+
+Where: `lib/constants.ts` line 2 and `.env.example`
+
+Now: the backend address is read from `NEXT_PUBLIC_BACKEND_API_URL`.
+
+Problem: in Next.js, `NEXT_PUBLIC_` means "put this value into the JavaScript that goes to the browser". The backend should only be called from the server (the API routes), so the name says the opposite of what we want. Today it is only used on the server, but if a client component ever imports it, the internal address ends up in the browser.
+
+Fix: rename it to `BACKEND_API_URL`, and keep the old name working as a fallback so existing `.env.local` files don't break.
+
+### 2. Next.js version has known security issues (High)
+
+Where: `package.json` (`"next": "14.2.5"`)
+
+Now: the project is pinned to Next.js 14.2.5. `npm audit` reports it as critical, with a long list of advisories (cache poisoning, denial of service, middleware bypass and others). It also reports `nanoid` as high.
+
+Problem: this is a production app, and these are publicly known issues. Many of them are in features this app doesn't use (image optimization, middleware, server actions), so the real risk is lower than "critical" sounds, but it's still the first thing a security scan will flag.
+
+Fix: update to the latest 14.2.x release. It's a patch update, so no code changes are needed, and it fixes a lot of these. Some advisories are only fixed in newer major versions (15/16), which also need React 19. That is a bigger change with its own testing, so I would plan it separately instead of doing it inside this task.
+
+---
+
+## UX issues
+
+### 1. The Activity page has no loading, error or empty state (Medium)
+
+Where: `app/activity/page.tsx` lines 93-131
+
+Now: while loading, after a failure, and when there is really no activity, the page looks the same: "Total: 0" and an empty box.
+
+Problem: the user can't tell if it's still loading, if something broke, or if there's simply nothing there. There is no way to retry either.
+
+Fix: show "Loading activity...", an error message with a Retry button, and a clear empty message ("No activity yet" or "No results for this search"). The Task Dashboard already does most of this, so the two pages should behave the same.
+
+### 2. Every activity shows its date twice (Low)
+
+Where: `app/activity/page.tsx` lines 124-126
+
+Now: each item prints `formatTimeA(item.when)` and then `formatTimeB(item.when)`, which give exactly the same text.
+
+Fix: show it once. A relative time like "5 minutes ago", with the full date on hover, would also be easier to read.
+
+### 3. The newest activity is at the bottom (Low)
+
+Where: `app/activity/page.tsx` line 120
+
+Now: the list is shown in the order of the file, so the oldest entry is first.
+
+Problem: in a feed, people expect the latest thing at the top.
+
+Fix: sort by `when`, newest first.
+
+### 4. The search box has no label (Low)
+
+Where: `app/activity/page.tsx` lines 104-109
+
+Now: it only has a placeholder.
+
+Problem: screen readers may not announce what the field is for, and the placeholder disappears when you start typing.
+
+Fix: add a label (it can be visually hidden) or an `aria-label`.
+
+### 5. No navigation between pages (Low)
+
+Where: `app/tasks/page.tsx` lines 7-11 and `app/activity/page.tsx` lines 95-99
+
+Now: each page only has a "Back" link to the home page.
+
+Problem: to go from Tasks to Activity you have to go back home first, and there is no way to see which page you are on. This gets worse when we add /reports.
+
+Fix: add one shared navigation bar in `app/layout.tsx` with links to all pages and the current page highlighted.
+
+---
+
+## React best practices
+
+### 1. The Activity page keeps the same data in three states (Medium)
+
+Where: `app/activity/page.tsx` lines 8-12 and 71-83
+
+Now: `allActivity`, `shownActivity` and `forcedList` all hold versions of the same list, and `useEffect`s copy one into the other.
+
+Problem: the filtered list can be calculated from `allActivity` and `query`, so it doesn't need its own state. Copying state with effects causes extra renders (the page renders, the effect runs, it sets state, the page renders again), and it is easy for the copies to get out of sync.
+
+Fix: keep only `allActivity` and `query` in state, and calculate the visible list with `useMemo`. This is how `filteredTasks` already works in `useTasks.ts`.
+
+### 2. Helper functions are created inside the component and missing from effect dependencies (Low)
+
+Where: `app/activity/page.tsx` lines 14-46 and line 75
+
+Now: `formatTimeA/B` and `applyFilterA/B` are defined inside the component, so they are created again on every render. The effect on line 71 uses them but doesn't list them as dependencies (ESLint's `react-hooks/exhaustive-deps` rule would warn about this).
+
+Fix: they don't use any props or state, so move them outside the component (or into a `lib/` file). Then they are created once and the dependency warning goes away.
+
+---
+
+## Maintainability
+
+### 1. The Activity Feed doesn't follow the structure of the Task Dashboard (Medium)
+
+Where: `app/activity/page.tsx` (the whole file)
+
+Now: the fetching, filtering, formatting and all the markup are in one 133-line page component. The Task Dashboard has a hook and small components.
+
+Problem: two different styles in the same small app. It is harder to test or reuse anything from the Activity page.
+
+Fix: move the data logic into a `useActivity` hook (like `useTasks`), and split the UI into small components such as `ActivitySearch` and `ActivityList`.
+
+### 2. Inline styles and hard-coded colors everywhere (Medium)
+
+Where: almost every component, for example `components/tasks/TaskDashboard.tsx` line 39 (`#e3b4c0`, `#fff8fa`) and `app/activity/page.tsx` lines 101-126
+
+Now: most of the styling is written as `style={{ ... }}` in the JSX, with some colors written directly as hex values.
+
+Problem: changing the design means editing every component one by one, the same values are repeated in many places, and the JSX is hard to read. This also makes the UI improvement task much harder.
+
+Fix: move the styles into CSS classes, and keep colors and spacing as CSS variables in `globals.css`, so the whole look can be changed from one place.
+
+---
+
+## Code quality
+
+### 1. Copy-pasted functions, and the search runs twice (Low)
+
+Where: `app/activity/page.tsx` lines 14-20, 22-46 and 72-73
+
+Now: `formatTimeA` and `formatTimeB` are the same. `applyFilterA` and `applyFilterB` do the same thing (one uses `includes`, the other `indexOf`), and the code runs both, one after the other, on every change.
+
+Problem: double the code to maintain, and the list gets filtered twice for the same result.
+
+Fix: keep one format function and one filter function.
+
+---
+
+## Things I left alone on purpose
+
+- Data loading in client hooks. The Task Dashboard loads data in the browser with a hook. Moving it to Server Components would be a big rewrite. The brief says not to rewrite everything, so I kept this approach and made the Activity Feed follow it too.
+- The Next.js API routes as a proxy. I kept them, because they avoid CORS and keep the backend address on the server.
+- Live updates for the Activity Feed. The old timer did not actually fetch new data, so removing it doesn't lose any feature.
