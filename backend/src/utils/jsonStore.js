@@ -41,10 +41,6 @@ async function writeFileAtomic(filePath, data) {
   await fs.rename(tempPath, filePath);
 }
 
-function writeJsonArray(filePath, data) {
-  return withFileLock(filePath, () => writeFileAtomic(filePath, data));
-}
-
 // Read, change and save a file as one locked step, so two requests can't
 // overwrite each other's changes. updateFn changes the array in place and
 // returns whatever the caller needs back. If it throws, nothing is saved.
@@ -59,6 +55,5 @@ function updateJsonArray(filePath, updateFn) {
 
 module.exports = {
   readJsonArray,
-  writeJsonArray,
   updateJsonArray,
 };
