@@ -1,53 +1,26 @@
-const fs = require('node:fs');
+const { createId } = require('../../../utils/id');
+const { readJsonArray, updateJsonArray } = require('../../../utils/jsonStore');
+const { ACTIVITY_FILE_PATH } = require('../../../config/paths');
 
-const { ACTIVITY_FILE_PATH: fp } = require('../../../config/paths');
-
-function loadDataA() {
-  if (!fs.existsSync(fp)) {
-    fs.writeFileSync(fp, '[]');
-  }
-
-  let raw = fs.readFileSync(fp, 'utf8');
-  if (!raw) {
-    raw = '[]';
-  }
-
-  return JSON.parse(raw);
+async function getAllActivity() {
+  return readJsonArray(ACTIVITY_FILE_PATH);
 }
 
-function loadDataB() {
-  if (!fs.existsSync(fp)) {
-    fs.writeFileSync(fp, '[]');
-  }
+async function createActivity(payload) {
+  return updateJsonArray(ACTIVITY_FILE_PATH, (activities) => {
+    const newActivity = {
+      id: createId(),
+      action: payload.action,
+      info: payload.info,
+      when: new Date().toISOString(),
+    };
 
-  let raw = fs.readFileSync(fp, 'utf8');
-  if (!raw) {
-    raw = '[]';
-  }
-
-  return JSON.parse(raw);
-}
-
-function getAllActivity() {
-  const arr = loadDataA();
-  return arr;
-}
-
-function createNewActivity(b) {
-  const list = loadDataB();
-  const one = {
-    id: String(Date.now()),
-    action: b.action,
-    info: b.info,
-    when: new Date().toISOString(),
-  };
-
-  list.push(one);
-  fs.writeFileSync(fp, JSON.stringify(list, null, 2));
-  return one;
+    activities.push(newActivity);
+    return newActivity;
+  });
 }
 
 module.exports = {
   getAllActivity,
-  createNewActivity,
+  createActivity,
 };

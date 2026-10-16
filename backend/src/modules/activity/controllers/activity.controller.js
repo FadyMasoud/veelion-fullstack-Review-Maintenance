@@ -1,17 +1,20 @@
-const aSvc = require('../services/activity.service');
+const activityService = require('../services/activity.service');
+const { validateCreateActivity } = require('../utils/activityValidator');
 
-function get_activity(req, res) {
-  const x = aSvc.getAllActivity();
-  res.json(x);
+// Activity responses are plain objects and arrays (not wrapped in { data }).
+// The frontend and docs depend on this shape, so it is kept as it was.
+async function listActivity(req, res) {
+  const activities = await activityService.getAllActivity();
+  res.status(200).json(activities);
 }
 
-function addActivity(req, res) {
-  const bodyData = req.body || {};
-  const made = aSvc.createNewActivity(bodyData);
-  res.status(201).json(made);
+async function createActivity(req, res) {
+  const payload = validateCreateActivity(req.body);
+  const newActivity = await activityService.createActivity(payload);
+  res.status(201).json(newActivity);
 }
 
 module.exports = {
-  get_activity,
-  addActivity,
+  listActivity,
+  createActivity,
 };
