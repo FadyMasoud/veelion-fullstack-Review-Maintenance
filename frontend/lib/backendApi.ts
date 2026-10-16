@@ -1,12 +1,20 @@
 import { BACKEND_BASE_URL } from "@/lib/constants";
 import type { ActivityLog, ErrorResponse, Task, TaskResponse, TasksResponse } from "@/types/api";
 
-function buildBackendUrl(path: string): string {
-  return `${BACKEND_BASE_URL}${path}`;
+// Keeps the backend's HTTP status, so API routes can pass it on to the browser
+// instead of turning every failure into a 500.
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
 }
 
 async function parseError(response: Response): Promise<string> {
-  let fallback = `Request failed with status ${response.status}`;
+  const fallback = `Request failed with status ${response.status}`;
 
   try {
     const body = (await response.json()) as ErrorResponse;
@@ -16,57 +24,40 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export async function getTasksFromBackend(): Promise<Task[]> {
+async function requestBackend<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response;
+
   try {
-    const response = await fetch(buildBackendUrl("/tasks"), {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error(await parseError(response));
-    }
-
-    const body = (await response.json()) as TasksResponse;
-    return body.data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Failed to load tasks.");
+    response = await fetch(`${BACKEND_BASE_URL}${path}`, { ...init, cache: "no-store" });
+  } catch {
+    // fetch only throws when there is no response at all (backend down or unreachable).
+    throw new ApiError("Could not reach the backend service.", 502);
   }
+
+  if (!response.ok) {
+    throw new ApiError(await parseError(response), response.status);
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function getTasksFromBackend(): Promise<Task[]> {
+  const body = await requestBackend<TasksResponse>("/tasks");
+  return body.data;
 }
 
 export async function updateTaskInBackend(taskId: string, completed: boolean): Promise<Task> {
-  try {
-    const response = await fetch(buildBackendUrl(`/tasks/${taskId}`), {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ completed }),
-      cache: "no-store",
-    });
+  const body = await requestBackend<TaskResponse>(`/tasks/${encodeURIComponent(taskId)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ completed }),
+  });
 
-    if (!response.ok) {
-      throw new Error(await parseError(response));
-    }
-
-    const body = (await response.json()) as TaskResponse;
-    return body.data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Failed to update task.");
-  }
+  return body.data;
 }
 
 export async function getActivityFromBackend(): Promise<ActivityLog[]> {
-  try {
-    const response = await fetch(buildBackendUrl("/activity"), {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error(await parseError(response));
-    }
-
-    return (await response.json()) as ActivityLog[];
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Failed to load activity logs.");
-  }
+  return requestBackend<ActivityLog[]>("/activity");
 }
