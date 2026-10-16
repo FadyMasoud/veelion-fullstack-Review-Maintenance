@@ -1,0 +1,68 @@
+.card {
+  padding: 1.25rem;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.rowText {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.92rem;
+}
+
+.rowLabel {
+  font-weight: 500;
+}
+
+.rowValue {
+  font-weight: 600;
+}
+
+.percent {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Thin bar with a rounded end, square at the start (the baseline). */
+.track {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--chart-track);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--chart-bar);
+  transition: width 0.4s ease;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.note {
+  margin: 1.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}

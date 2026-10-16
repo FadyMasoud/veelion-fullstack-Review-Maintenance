@@ -1,4 +1,4 @@
-import { Activity, LayoutDashboard, ListChecks, type LucideIcon } from "lucide-react";
+import { Activity, ChartColumn, LayoutDashboard, ListChecks, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -10,6 +10,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/activity", label: "Activity", icon: Activity },
+  { href: "/reports", label: "Reports", icon: ChartColumn },
 ];
 
 export function isActivePath(pathname: string, href: string): boolean {

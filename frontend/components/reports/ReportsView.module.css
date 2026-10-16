@@ -1,0 +1,78 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.loadingText {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+}
+
+.skeleton {
+  height: 132px;
+  background: linear-gradient(90deg, var(--surface) 0%, var(--chip) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeletonWide {
+  grid-column: 1 / -1;
+  height: 220px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.error {
+  padding: 1.25rem;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.errorText {
+  margin: 0 0 0.75rem;
+  color: var(--danger);
+}
