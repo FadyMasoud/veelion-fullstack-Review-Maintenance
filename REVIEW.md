@@ -202,6 +202,29 @@ Fix: delete both and use readJsonArray from jsonStore.
 - The response shapes. Tasks return `{ data }` and activity returns a plain array. It's inconsistent, but the frontend and the docs depend on it and changing it would break something that works today.
 - JSON files for storage. The brief asks for it. A real database is the long term fix (see Performance 2).
 - Caching and pagination (Performance 2 and 3). Not needed at this size and they would change behaviour the frontend relies on.
+- Security headers and rate limiting (Security 2). Worth adding before the API is exposed to the internet, but today it is only called by the Next.js server, so I kept the change set focused.
+- One moderate `qs` advisory is still reported after `npm audit fix`. Express 4 pins its own copy of `qs`, so it can only go away with an Express upgrade. The issue is in `qs` options that Express doesn't use.
+- `in-progress` in the report is always 0, because tasks only store `completed`. I didn't add a `status` field to tasks, because that would change the task model, the stored data and the frontend toggle. The report reads a `status` field first if one is ever added, so it won't need changes.
+
+One behaviour change to be aware of: `POST /tasks` now answers 400 for unknown fields (it used to ignore them). This comes from `taskValidator.js`, which already worked this way, and it matches `PATCH`. The frontend never sends extra fields.
+
+## What I changed
+
+| Finding | Status |
+|---|---|
+| Bugs 1: lost writes | Fixed: per-file lock, all changes go through `updateJsonArray` |
+| Bugs 2: PATCH can change any field | Fixed: controller uses `taskValidator.js` |
+| Bugs 3: half-written file | Fixed: write to a temp file, then rename |
+| Bugs 4: path depends on cwd | Fixed: `src/config/paths.js` uses `__dirname` |
+| Bugs 5: duplicate activity ids | Fixed: `createId()` |
+| Bugs 6: different title rules | Fixed: one rule in the validator |
+| Performance 1: sync file calls | Fixed: Activity uses async `jsonStore` |
+| Performance 2, 3 | Left alone (see above) |
+| Security 1: activity accepts anything | Fixed: `activityValidator.js` |
+| Security 2: headers / rate limit | Left alone (see above) |
+| Security 3: dependency advisories | Fixed with `npm audit fix` (one moderate left, see above) |
+| Maintainability 1, 2 | Fixed |
+| Code quality 1, 2 | Fixed |
 
 ---
 
@@ -420,3 +443,25 @@ Fix: keep one format function and one filter function.
 - Data loading in client hooks. The Task Dashboard loads data in the browser with a hook. Moving it to Server Components would be a big rewrite. The brief says not to rewrite everything, so I kept this approach and made the Activity Feed follow it too.
 - The Next.js API routes as a proxy. I kept them, because they avoid CORS and keep the backend address on the server.
 - Live updates for the Activity Feed. The old timer did not actually fetch new data, so removing it doesn't lose any feature.
+- The Next.js upgrade (Security 1). Updating to the latest 14.2.x is a patch update and the first thing I would do next. I kept it out of this change set so every behaviour change here could be tested on its own.
+- The "Total | Visible" line on the Activity page is now shown as the entry count in the page header and "Showing 1–10 of N" under the table. Same information, clearer place.
+
+## What I changed
+
+| Finding | Status |
+|---|---|
+| Bugs 1: Activity page crash | Fixed: checks `response.ok` and the response shape, shows an error with Retry |
+| Bugs 2: failed toggle hides the list | Fixed: separate load and update errors |
+| Bugs 3: every error becomes 500 | Fixed: `ApiError` keeps the backend status; invalid JSON returns 400 |
+| Bugs 4: technical error messages | Fixed: safe error parsing with a simple fallback |
+| Bugs 5: one saving task at a time | Fixed: a Set of saving ids |
+| Performance 1: 1.4 s timer | Fixed: timer and copied state removed |
+| Security 1: Next.js version | Left alone (see above) |
+| UX 1–4 | Fixed: loading / error / empty states, one relative date, newest first, labelled search |
+| UX 5: no navigation | Fixed: shared layout with sidebar, header and footer |
+| React best practices 1, 2 | Fixed: no derived state; helpers moved to `lib/` |
+| Maintainability 1 | Fixed: `useActivity` hook + small components, same structure as Tasks |
+| Maintainability 2 | Fixed: CSS Modules and CSS variables, no inline styles (except the computed bar width) |
+| Code quality 1 | Fixed |
+
+Beyond the review I also added: the `/reports` page, a light/dark theme, and sortable, searchable, paginated tables (TanStack Table) for Tasks and Activity.

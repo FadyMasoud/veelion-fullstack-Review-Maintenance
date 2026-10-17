@@ -1,166 +1,83 @@
-# VeeLion Frontend Assessment (Next.js)
+# Task Manager: VeeLion Full-Stack Assessment
 
-## Overview
+A small task management app: an Express.js API that stores its data in JSON files, and a Next.js (App Router, TypeScript) web app.
 
-You are given a partially implemented frontend for a **Task Management System** built with Next.js.
+- **Tasks**: a sortable, searchable, paginated table. Filter by status and mark tasks done or pending.
+- **Activity**: the activity log as a table, newest first, with search and an action filter.
+- **Reports**: total tasks, tasks by status and recent activity, from `GET /reports/tasks-summary`.
+- Shared layout with a sidebar, header and footer, and a light/dark theme.
 
-The project contains **two modules**:
+The code review is in [REVIEW.md](REVIEW.md).
 
-* A **Task Dashboard**
-* An **Activity Feed**
+## Running it
 
-Your goal is to:
+You need Node.js 18.17 or newer.
 
-1. Review the existing implementation
-2. Identify good and bad practices
-3. Improve the problematic module
-4. Build a new feature that integrates with the system
+**1. Backend** (runs on http://localhost:4000)
 
----
-
-## Objectives
-
-This assessment evaluates your ability to:
-
-* Understand existing React/Next.js code
-* Identify code quality issues
-* Refactor UI code effectively
-* Build maintainable components
-* Integrate with APIs
-
----
-
-## What You Are Given
-
-* Next.js (App Router) project
-* Two modules/pages:
-
-  * Task Dashboard
-  * Activity Feed
-
----
-
-## Your Tasks
-
-### 1. Code Review
-
-Create a file named:
-
-```
-REVIEW.md
+```bash
+cd backend
+npm install
+npm start
 ```
 
-Include:
+**2. Frontend** (runs on http://localhost:3000)
 
-* All the findings / issues you may want to discuss
-* Categorize issues such as:
-
-  * Performance
-  * Maintainability
-  * UX issues
-  * Code quality
-  * React best practices
-
-For each issue:
-
-* What is wrong
-* Why it matters
-* Suggested improvement
-
----
-
-### 2. Refactor Both Modules
-
-Improve the existing modules
-
-**Important**:
-
-* Don't rewrite everything from scratch
-* Maintain existing functionality
-
----
-
-
-### 3. Build a New Module (Reports UI)
-
-Create a new page:
-
-```
-/reports
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
 ```
 
-### Requirements:
+Then open http://localhost:3000.
 
-Display:
+The backend used to default to port 3000, the same port as `next dev`, while the frontend config and docs pointed to 4000. It now defaults to 4000 so the two match. `PORT=... npm start` still works.
 
-* Total number of tasks
-* Tasks grouped by status
-* Recent activity count
+## Project structure
 
-### Expectations:
+```
+backend/
+  data/                 tasks.json and activity.json (the storage)
+  src/
+    config/paths.js     data file paths, built from the code's location
+    utils/jsonStore.js  reading and locked, atomic updates of the JSON files
+    modules/
+      tasks/            routes → controller → service (+ validator)
+      activity/         same structure
+      reports/          GET /reports/tasks-summary
+frontend/
+  app/                  pages and API routes (the API routes call the backend)
+  components/
+    layout/             sidebar, header, footer, theme toggle
+    ui/                 DataTable, PageHeader, SearchInput
+    tasks/ activity/ reports/
+  hooks/                useTasks, useActivity, useTasksSummary
+  lib/                  API helpers, dates, report constants
+  docs/backend-endpoints.md
+```
 
-* Fetch data from the Reports API
-* Use clean component structure
-* Handle loading and error states
-* Keep UI simple but clear
+The browser only talks to the Next.js API routes (`/api/...`). They call the Express API on the server, so there is no CORS setup and the backend address stays on the server.
 
----
+## Reports API
 
-## Constraints
+`GET /reports/tasks-summary?days=7`
 
-* Keep components reusable and clean
-* Assume this is part of a real production app
+```json
+{ "total": 4, "byStatus": { "todo": 2, "in-progress": 0, "done": 2 }, "recentActivityCount": 3 }
+```
 
----
+- **byStatus**: tasks only store `completed`, so done = completed, todo = not completed, and in-progress is 0. If a task ever has a valid `status` field, that is used instead.
+- **recentActivityCount**: activity entries whose `when` is within the last `days` days (default 7, allowed 1–365, anything else is a 400). The page sends the same `days` value it shows in its label.
+- The report uses the Tasks and Activity services instead of reading the files itself, so each module stays in charge of its own data.
 
-### 4. Improve the current UI
+Full endpoint docs: [frontend/docs/backend-endpoints.md](frontend/docs/backend-endpoints.md).
 
-Improve the existing UI, it currently uses basic CSS styling.
-Use your eye and style the pages beautifully.
+## Main decisions
 
+- **Safe writes to the JSON files.** Every change goes through `updateJsonArray`, which reads, changes and saves a file inside a per-file lock, and writes to a temp file before renaming it. Before this, two requests at the same time could lose data.
+- **Kept the API response shapes** (`{ data }` for tasks, plain arrays and objects for activity and reports), because the frontend and docs rely on them.
+- **One reusable table** (`components/ui/DataTable.tsx`) built on TanStack Table. TanStack handles sorting, filtering and paging, and the component renders it with our own markup and styles.
+- **Design tokens** in `app/globals.css` (CSS variables) and CSS Modules per component. The dark theme only swaps the variables, and a small inline script applies the saved theme before the first paint so there is no flash.
 
----
-
-## Submission Instructions
-
-1. Create a **public GitHub repository**
-
-2. Push your solution
-
-3. Include:
-
-   * Updated code
-   * `REVIEW.md`
-   * Clean commit history
-
-4. Share the repository link
-
----
-
-## ⏱Time Expectation
-
-* Expected time: **~2 days**
-
----
-
-## AI Usage
-
-You are allowed to use AI tools, but not copy-pasting this document and just pushing the output.
-
-We are evaluating:
-
-* How you reason about code
-* Your ability to identify issues
-* Your improvements, not just generated code
-
----
-
-
-
-
-## Project Notes
-
-- The frontend uses Next.js App Router with TypeScript.
-- Route handlers under `app/api/*` proxy requests to backend.
-- Backend endpoint docs are in `docs/backend-endpoints.md`.
-- Backend installation notes are in `/backend/README.md`.
+What I left alone on purpose, and why, is at the end of each half of [REVIEW.md](REVIEW.md).
