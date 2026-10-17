@@ -1,0 +1,18 @@
+.field {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.input {
+  padding-left: 2.25rem;
+}
