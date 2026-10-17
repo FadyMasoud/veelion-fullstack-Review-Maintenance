@@ -1,67 +1,107 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
+import type { ColumnFiltersState } from "@tanstack/react-table";
 import { useTasks } from "@/hooks/useTasks";
-import type { Task } from "@/types/api";
+import type { Task, TaskFilter } from "@/types/api";
+import { DataTable } from "@/components/ui/DataTable";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusFilter } from "@/components/tasks/StatusFilter";
-import { TaskList } from "@/components/tasks/TaskList";
+import { buildTaskColumns } from "@/components/tasks/taskColumns";
+import styles from "./TaskDashboard.module.css";
 
 export function TaskDashboard() {
   const {
-    filteredTasks,
-    filter,
+    tasks,
     loading,
     loadError,
     updateError,
     savingTaskIds,
-    setFilter,
     fetchTasks,
     updateTaskStatus,
     clearUpdateError,
   } = useTasks();
 
-  const handleToggle = (task: Task) => {
-    updateTaskStatus(task.id, !task.completed);
-  };
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskFilter>("all");
+
+  const handleToggle = useCallback(
+    (task: Task) => updateTaskStatus(task.id, !task.completed),
+    [updateTaskStatus]
+  );
+
+  const columns = useMemo(
+    () => buildTaskColumns({ savingTaskIds, onToggle: handleToggle }),
+    [savingTaskIds, handleToggle]
+  );
+
+  const columnFilters = useMemo<ColumnFiltersState>(
+    () => (statusFilter === "all" ? [] : [{ id: "status", value: statusFilter }]),
+    [statusFilter]
+  );
+
+  const completedCount = tasks.filter((task) => task.completed).length;
+  const isFiltered = search.trim() !== "" || statusFilter !== "all";
 
   return (
-    <section className="stack">
-      <header className="card" style={{ padding: "1rem" }}>
-        <h1 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Task Dashboard</h1>
-      </header>
-
-      <StatusFilter value={filter} onChange={setFilter} />
-
-      {loading ? (
-        <section className="card" style={{ padding: "1rem" }}>
-          <p style={{ margin: 0 }}>Loading tasks...</p>
-        </section>
-      ) : null}
-
-      {loadError ? (
-        <section className="card" style={{ padding: "1rem", borderColor: "var(--danger-border)", background: "var(--danger-soft)" }}>
-          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{loadError}</p>
-          <button type="button" className="button" onClick={fetchTasks}>
-            Retry
-          </button>
-        </section>
-      ) : null}
+    <div className="stack">
+      <PageHeader
+        title="Tasks"
+        description={loading ? "Loading tasks..." : `${tasks.length} tasks · ${completedCount} completed`}
+      />
 
       {updateError ? (
-        <section
-          role="alert"
-          className="card"
-          style={{ padding: "1rem", borderColor: "var(--danger-border)", background: "var(--danger-soft)" }}
-        >
-          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{updateError}</p>
+        <div role="alert" className="notice-error">
+          <p>{updateError}</p>
           <button type="button" className="button" onClick={clearUpdateError}>
             Dismiss
           </button>
-        </section>
+        </div>
       ) : null}
 
-      {!loading && !loadError ? (
-        <TaskList tasks={filteredTasks} savingTaskIds={savingTaskIds} onToggle={handleToggle} />
-      ) : null}
-    </section>
+      <section className={`card ${styles.panel}`}>
+        <div className={styles.toolbar}>
+          <SearchInput
+            id="task-search"
+            label="Search tasks"
+            placeholder="Search by title"
+            value={search}
+            onChange={setSearch}
+          />
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        </div>
+
+        {loading ? (
+          <p className={styles.state} aria-busy="true">
+            Loading tasks...
+          </p>
+        ) : null}
+
+        {!loading && loadError ? (
+          <div className={styles.state}>
+            <div role="alert" className="notice-error">
+              <p>{loadError}</p>
+              <button type="button" className="button" onClick={fetchTasks}>
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!loading && !loadError ? (
+          <DataTable
+            data={tasks}
+            columns={columns}
+            getRowId={(task) => task.id}
+            caption="Tasks"
+            emptyMessage={isFiltered ? "No tasks match your search or filter." : "No tasks yet."}
+            globalFilter={search.trim()}
+            columnFilters={columnFilters}
+            initialSorting={[{ id: "updatedAt", desc: true }]}
+          />
+        ) : null}
+      </section>
+    </div>
   );
 }

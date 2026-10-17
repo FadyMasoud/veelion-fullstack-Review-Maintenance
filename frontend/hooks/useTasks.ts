@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getErrorMessage, requestJson } from "@/lib/clientApi";
-import type { Task, TaskFilter, TaskResponse, TasksResponse } from "@/types/api";
+import type { Task, TaskResponse, TasksResponse } from "@/types/api";
 
+// Loads and updates tasks. Searching, filtering and sorting happen in the table.
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [filter, setFilter] = useState<TaskFilter>("all");
   const [loading, setLoading] = useState<boolean>(true);
   // Loading errors replace the list. Update errors are shown above it, so one
   // failed toggle doesn't hide every task.
@@ -62,27 +62,12 @@ export function useTasks() {
     fetchTasks();
   }, [fetchTasks]);
 
-  const filteredTasks = useMemo(() => {
-    if (filter === "completed") {
-      return tasks.filter((task) => task.completed);
-    }
-
-    if (filter === "pending") {
-      return tasks.filter((task) => !task.completed);
-    }
-
-    return tasks;
-  }, [tasks, filter]);
-
   return {
     tasks,
-    filteredTasks,
-    filter,
     loading,
     loadError,
     updateError,
     savingTaskIds,
-    setFilter,
     fetchTasks,
     updateTaskStatus,
     clearUpdateError,
