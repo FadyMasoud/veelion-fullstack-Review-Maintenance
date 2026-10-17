@@ -5,6 +5,7 @@ import { useTasksSummary } from "@/hooks/useTasksSummary";
 import { RECENT_ACTIVITY_DAYS } from "@/lib/reports";
 import { StatTile } from "@/components/reports/StatTile";
 import { StatusBreakdown } from "@/components/reports/StatusBreakdown";
+import { PageHeader } from "@/components/ui/PageHeader";
 import styles from "./ReportsView.module.css";
 
 export function ReportsView() {
@@ -12,16 +13,16 @@ export function ReportsView() {
 
   return (
     <div className="stack">
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Reports</h1>
-          <p className={styles.subtitle}>A summary of your tasks and recent activity.</p>
-        </div>
-        <button type="button" className="button" onClick={fetchSummary} disabled={loading}>
-          <RefreshCw size={16} aria-hidden="true" />
-          Refresh
-        </button>
-      </header>
+      <PageHeader
+        title="Reports"
+        description="A summary of your tasks and recent activity."
+        actions={
+          <button type="button" className="button" onClick={fetchSummary} disabled={loading}>
+            <RefreshCw size={16} aria-hidden="true" />
+            Refresh
+          </button>
+        }
+      />
 
       {loading ? (
         <div className={styles.grid} aria-busy="true">
