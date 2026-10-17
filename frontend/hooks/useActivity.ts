@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { filterActivity, sortNewestFirst } from "@/lib/activity";
+import { useCallback, useEffect, useState } from "react";
 import { getErrorMessage, requestJson } from "@/lib/clientApi";
 import type { ActivityLog } from "@/types/api";
 
+// Loads the activity log. Searching, filtering and sorting happen in the table.
 export function useActivity() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
@@ -33,20 +32,10 @@ export function useActivity() {
     fetchActivity();
   }, [fetchActivity]);
 
-  // Derived from activities and query, so they are calculated, not kept in state.
-  const sortedActivities = useMemo(() => sortNewestFirst(activities), [activities]);
-  const visibleActivities = useMemo(
-    () => filterActivity(sortedActivities, query),
-    [sortedActivities, query]
-  );
-
   return {
     activities,
-    visibleActivities,
-    query,
     loading,
     error,
-    setQuery,
     fetchActivity,
   };
 }

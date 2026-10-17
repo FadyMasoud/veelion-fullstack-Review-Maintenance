@@ -1,49 +1,101 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import type { ColumnFiltersState } from "@tanstack/react-table";
 import { useActivity } from "@/hooks/useActivity";
-import { ActivityList } from "@/components/activity/ActivityList";
-import { ActivitySearch } from "@/components/activity/ActivitySearch";
+import { activityColumns } from "@/components/activity/activityColumns";
+import { DataTable } from "@/components/ui/DataTable";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
+import styles from "./ActivityFeed.module.css";
+
+const ALL_ACTIONS = "";
 
 export function ActivityFeed() {
-  const { activities, visibleActivities, query, loading, error, setQuery, fetchActivity } = useActivity();
+  const { activities, loading, error, fetchActivity } = useActivity();
+  const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState(ALL_ACTIONS);
 
-  const emptyMessage =
-    activities.length === 0 ? "No activity yet." : `No activity matches "${query.trim()}".`;
+  // The options for the action dropdown come from the data itself.
+  const actionOptions = useMemo(
+    () => Array.from(new Set(activities.map((item) => item.action).filter(Boolean) as string[])).sort(),
+    [activities]
+  );
+
+  const columnFilters = useMemo<ColumnFiltersState>(
+    () => (actionFilter === ALL_ACTIONS ? [] : [{ id: "action", value: actionFilter }]),
+    [actionFilter]
+  );
+
+  const isFiltered = search.trim() !== "" || actionFilter !== ALL_ACTIONS;
 
   return (
-    <section className="stack">
-      <header className="card" style={{ padding: "1rem" }}>
-        <h1 style={{ margin: 0 }}>Activity Feed</h1>
-      </header>
+    <div className="stack">
+      <PageHeader
+        title="Activity"
+        description={loading ? "Loading activity..." : `${activities.length} entries in the log`}
+      />
 
-      <ActivitySearch value={query} onChange={setQuery} />
+      <section className={`card ${styles.panel}`}>
+        <div className={styles.toolbar}>
+          <SearchInput
+            id="activity-search"
+            label="Search activity"
+            placeholder="Search action or info"
+            value={search}
+            onChange={setSearch}
+          />
 
-      {loading ? (
-        <section className="card" style={{ padding: "1rem" }}>
-          <p style={{ margin: 0 }}>Loading activity...</p>
-        </section>
-      ) : null}
+          <div className={styles.filter}>
+            <label htmlFor="activity-action-filter" className={styles.filterLabel}>
+              Action
+            </label>
+            <select
+              id="activity-action-filter"
+              className={`input ${styles.select}`}
+              value={actionFilter}
+              onChange={(event) => setActionFilter(event.target.value)}
+            >
+              <option value={ALL_ACTIONS}>All actions</option>
+              {actionOptions.map((action) => (
+                <option key={action} value={action}>
+                  {action}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      {error ? (
-        <section className="card" style={{ padding: "1rem", borderColor: "var(--danger-border)", background: "var(--danger-soft)" }}>
-          <p style={{ marginTop: 0, marginBottom: "0.75rem", color: "var(--danger)" }}>{error}</p>
-          <button type="button" className="button" onClick={fetchActivity}>
-            Retry
-          </button>
-        </section>
-      ) : null}
+        {loading ? (
+          <p className={styles.state} aria-busy="true">
+            Loading activity...
+          </p>
+        ) : null}
 
-      {!loading && !error ? (
-        <>
-          <section className="card" style={{ padding: "1rem" }}>
-            <small style={{ color: "var(--muted)" }}>
-              Total: {activities.length} | Visible: {visibleActivities.length}
-            </small>
-          </section>
+        {!loading && error ? (
+          <div className={styles.state}>
+            <div role="alert" className="notice-error">
+              <p>{error}</p>
+              <button type="button" className="button" onClick={fetchActivity}>
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-          <ActivityList activities={visibleActivities} emptyMessage={emptyMessage} />
-        </>
-      ) : null}
-    </section>
+        {!loading && !error ? (
+          <DataTable
+            data={activities}
+            columns={activityColumns}
+            getRowId={(item) => item.id}
+            caption="Activity log"
+            emptyMessage={isFiltered ? "No activity matches your search or filter." : "No activity yet."}
+            globalFilter={search.trim()}
+            columnFilters={columnFilters}
+            initialSorting={[{ id: "when", desc: true }]}
+          />
+        ) : null}
+      </section>
+    </div>
   );
 }

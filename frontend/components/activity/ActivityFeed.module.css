@@ -1,0 +1,40 @@
+.panel {
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.select {
+  width: auto;
+  min-width: 180px;
+}
+
+.state {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--muted);
+}
+
+.action {
+  font-weight: 600;
+}
