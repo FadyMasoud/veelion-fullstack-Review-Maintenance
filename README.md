@@ -9,6 +9,15 @@ A small task management app: an Express.js API that stores its data in JSON file
 
 The code review is in [REVIEW.md](REVIEW.md).
 
+## Live demo
+
+- **App:** https://veelion-fullstack-review-maintenanc-five.vercel.app
+- **API:** https://veelion-fullstack-review-maintenanc-nine.vercel.app/tasks
+
+The demo is **read-only**. Both apps run on Vercel, which doesn't allow writing to files, so "Mark as done" shows an error online (and the task list stays on screen). Everything else works: the tables, search, filters, sorting, paging, reports and the dark theme. To try updating tasks, run the project locally (below).
+
+The backend runs on Vercel through `backend/api/index.js`, which exports the Express app as a serverless function. `backend/vercel.json` sends every path to it and bundles the `data/` folder with it.
+
 ## Running it
 
 You need Node.js 18.17 or newer.
